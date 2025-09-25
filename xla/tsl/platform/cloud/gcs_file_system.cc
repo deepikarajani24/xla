@@ -1823,6 +1823,7 @@ absl::Status GcsFileSystem::GetChildrenBounded(
       uri = strings::StrCat(uri,
                             "?fields=items%2Fname%2Cprefixes%2CnextPageToken");
       uri = strings::StrCat(uri, "&delimiter=%2F");
+      uri = strings::StrCat(uri, "&includeFoldersAsPrefixes=true");
     }
     if (!object_prefix.empty()) {
       uri = strings::StrCat(uri,

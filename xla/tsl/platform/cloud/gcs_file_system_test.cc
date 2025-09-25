@@ -1727,8 +1727,8 @@ TEST(GcsFileSystemTest, FileExists_DirectoryMark) {
 TEST(GcsFileSystemTest, GetChildren_NoItems) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&prefix="
-      "path%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "includeFoldersAsPrefixes=true&prefix=path%2F\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{\"prefixes\": [\"path/subpath/\"]}")});
@@ -1752,8 +1752,8 @@ TEST(GcsFileSystemTest, GetChildren_NoItems) {
 TEST(GcsFileSystemTest, GetChildren_ThreeFiles) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&prefix="
-      "path%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "includeFoldersAsPrefixes=true&prefix=path%2F\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{\"items\": [ "
@@ -1781,8 +1781,8 @@ TEST(GcsFileSystemTest, GetChildren_ThreeFiles) {
 TEST(GcsFileSystemTest, GetChildren_SelfDirectoryMarker) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&prefix="
-      "path%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "includeFoldersAsPrefixes=true&prefix=path%2F\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{\"items\": [ "
@@ -1809,8 +1809,8 @@ TEST(GcsFileSystemTest, GetChildren_SelfDirectoryMarker) {
 TEST(GcsFileSystemTest, GetChildren_ThreeFiles_NoSlash) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&prefix="
-      "path%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "includeFoldersAsPrefixes=true&prefix=path%2F\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{\"items\": [ "
@@ -1838,7 +1838,8 @@ TEST(GcsFileSystemTest, GetChildren_ThreeFiles_NoSlash) {
 TEST(GcsFileSystemTest, GetChildren_Root) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket-a-b-c/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "includeFoldersAsPrefixes=true\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{}")});
@@ -1862,8 +1863,8 @@ TEST(GcsFileSystemTest, GetChildren_Root) {
 TEST(GcsFileSystemTest, GetChildren_Empty) {
   std::vector<HttpRequest*> requests({new FakeHttpRequest(
       "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
-      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&prefix="
-      "path%2F\n"
+      "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
+      "check=true&prefix=path%2F\n"
       "Auth Token: fake_token\n"
       "Timeouts: 5 1 10\n",
       "{}")});
@@ -1889,7 +1890,7 @@ TEST(GcsFileSystemTest, GetChildren_Pagination) {
       {new FakeHttpRequest(
            "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
            "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
-           "prefix=path%2F\n"
+           "includeFoldersAsPrefixes=true&prefix=path%2F\n"
            "Auth Token: fake_token\n"
            "Timeouts: 5 1 10\n",
            "{\"nextPageToken\": \"ABCD==\", "
@@ -1900,7 +1901,7 @@ TEST(GcsFileSystemTest, GetChildren_Pagination) {
        new FakeHttpRequest(
            "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
            "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F&"
-           "prefix=path%2F"
+           "includeFoldersAsPrefixes=true&prefix=path%2F"
            "&pageToken=ABCD==\n"
            "Auth Token: fake_token\n"
            "Timeouts: 5 1 10\n",
@@ -1925,6 +1926,62 @@ TEST(GcsFileSystemTest, GetChildren_Pagination) {
   EXPECT_EQ(std::vector<string>({"file1.txt", "file3.txt", "subpath/",
                                  "file4.txt", "file5.txt"}),
             children);
+}
+
+TEST(GcsFileSystemTest, GetChildren_AddsFoldersAsPrefixesParameter) {
+  std::vector<HttpRequest*> requests(
+      {
+       new FakeHttpRequest(
+           // UPDATED LINE: The order of parameters is changed to match the implementation.
+           "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
+           "fields=items%2Fname%2Cprefixes%2CnextPageToken&delimiter=%2F"
+           "&includeFoldersAsPrefixes=true&prefix=path%2F\n"
+           "Auth Token: fake_token\n"
+           "Timeouts: 5 1 10\n",
+           "{\"items\": [ { \"name\": \"path/file.txt\" }],"
+           "\"prefixes\": [\"path/subfolder/\"]}")});
+  GcsFileSystem fs(
+      std::unique_ptr<AuthProvider>(new FakeAuthProvider),
+      std::unique_ptr<HttpRequest::Factory>(
+          new FakeHttpRequestFactory(&requests)),
+      std::unique_ptr<ZoneProvider>(new FakeZoneProvider), 0 /* block size */,
+      0 /* max bytes */, 0 /* max staleness */, 0 /* stat cache max age */,
+      0 /* stat cache max entries */, 0 /* matching paths cache max age */,
+      0 /* matching paths cache max entries */, kTestRetryConfig,
+      kTestTimeoutConfig, *kAllowedLocationsDefault,
+      nullptr /* gcs additional header */, false /* compose append */);
+
+  std::vector<string> children;
+  TF_EXPECT_OK(fs.GetChildren("gs://bucket/path/", nullptr, &children));
+
+  EXPECT_EQ(std::vector<string>({"file.txt", "subfolder/"}), children);
+}
+
+TEST(GcsFileSystemTest, GetMatchingPaths_OmitsRecursiveParameters) {
+  std::vector<HttpRequest*> requests(
+      {
+       new FakeHttpRequest(
+           "Uri: https://www.googleapis.com/storage/v1/b/bucket/o?"
+           "fields=items%2Fname%2CnextPageToken&prefix=path%2F\n"
+           "Auth Token: fake_token\n"
+           "Timeouts: 5 1 10\n",
+           "{\"items\": [ { \"name\": \"path/file.txt\" }]}")});
+  GcsFileSystem fs(
+      std::unique_ptr<AuthProvider>(new FakeAuthProvider),
+      std::unique_ptr<HttpRequest::Factory>(
+          new FakeHttpRequestFactory(&requests)),
+      std::unique_ptr<ZoneProvider>(new FakeZoneProvider), 0 /* block size */,
+      0 /* max bytes */, 0 /* max staleness */, 0 /* stat cache max age */,
+      0 /* stat cache max entries */, 0 /* matching paths cache max age */,
+      0 /* matching paths cache max entries */, kTestRetryConfig,
+      kTestTimeoutConfig, *kAllowedLocationsDefault,
+      nullptr /* gcs additional header */, false /* compose append */);
+
+  std::vector<string> results;
+  // GetMatchingPaths calls GetChildrenBounded with recursive = true
+  TF_EXPECT_OK(fs.GetMatchingPaths("gs://bucket/path/*", nullptr, &results));
+
+  EXPECT_EQ(std::vector<string>({"gs://bucket/path/file.txt"}), results);
 }
 
 TEST(GcsFileSystemTest, GetMatchingPaths_NoWildcard) {
